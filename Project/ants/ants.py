@@ -112,6 +112,7 @@ class Ant(Insect):
 
     def __init__(self, health: int = 1):
         super().__init__(health)
+        self.is_doubled = False
 
     def can_contain(self, other: Ant) -> bool:
         return False
@@ -167,6 +168,9 @@ class Ant(Insect):
         """Double this ants's damage, if it has not already been doubled."""
         # BEGIN Problem 12
         "*** YOUR CODE HERE ***"
+        if not self.is_doubled:
+            self.damage = self.damage * 2
+            self.is_doubled = True
         # END Problem 12
 
 
@@ -515,7 +519,7 @@ class QueenAnt(ThrowerAnt):
     food_cost = 7
     # OVERRIDE CLASS ATTRIBUTES HERE
     # BEGIN Problem 12
-    implemented = False   # Change to True to view in the GUI
+    implemented = True   # Change to True to view in the GUI
     # END Problem 12
 
     def action(self, gamestate: GameState):
@@ -524,6 +528,25 @@ class QueenAnt(ThrowerAnt):
         """
         # BEGIN Problem 12
         "*** YOUR CODE HERE ***"
+        # 1.通过place.exit向后遍历自己tunnel上的每一个place直到最后一个place.exit == None
+        # 2.对于每一个place先判断该位置上是否有ant
+        #   2.1若有，先将其self.damage加倍
+        #   2.2再判断是否是container（即判断is_container == True）和其是否包含另一只ant，若为真self.ant_contained.damage加倍
+        # 3.判断是否到tunnel最后
+        super().action(gamestate)
+        if self.place.exit is None:
+            return
+        current_place = self.place
+        while(current_place.exit is not None):
+            current_place = current_place.exit
+            if current_place.ant is None:
+                continue
+            current_place.ant.double()
+            if not current_place.ant.is_container:
+                continue
+            if current_place.ant.ant_contained is not None:
+                current_place.ant.ant_contained.double()
+            
         # END Problem 12
 
     def reduce_health(self, damage_taken: float):
@@ -532,6 +555,9 @@ class QueenAnt(ThrowerAnt):
         """
         # BEGIN Problem 12
         "*** YOUR CODE HERE ***"
+        super().reduce_health(damage_taken)
+        if self.health <= 0:
+            ants_lose()
         # END Problem 12
 
 
@@ -541,22 +567,80 @@ class QueenAnt(ThrowerAnt):
 
 class SlowThrower(ThrowerAnt):
     """ThrowerAnt that causes Slow on Bees."""
-
+    """
+    SlowThrower throws sticky syrup at a bee, slowing it for 5 turns. 
+    When a bee is slowed, it does its regular Bee action when gamestate.time is even, and takes no action (does not move or sting) otherwise. 
+    If a bee is hit by syrup while it is already slowed, it is slowed for 5 turns starting from the most recent time it is hit by syrup. 
+    That is, if a bee is hit by syrup, takes 2 turns, and is hit by syrup again, it will now be slowed for 5 turns after the second time it is hit by syrup. 
+    So it will have been slowed for 7 turns total (not 10!).
+    """
+    """
+    Important Restriction: You may not modify any code outside the SlowThrower class for this problem. 
+    That means you may not modify the Bee.action method directly. Our tests will check for this.
+    """
+    """
+    Hint: Take a look at SlowThrower's parent class, ThrowerAnt. 
+    ThrowerAnt's action method calls throw_at, which is what you should be overriding in SlowThrower. 
+    What is passed into the target parameter in SlowThrower's throw_at function and why? 
+    What is target.action referring to?
+    """
+    """
+    Implementation Hint: Assign target.action to a new function that conditionally calls Bee.action. 
+    You can create and use an instance attribute to track how many more turns the bee will be slowed. 
+    Once the slowing effect is over, Bee.action should be called every turn again.
+    """
     name = 'Slow'
     food_cost = 6
     # BEGIN Problem EC 1
-    implemented = False   # Change to True to view in the GUI
+    implemented = True   # Change to True to view in the GUI
     # END Problem EC 1
 
     def throw_at(self, target: Bee | None):
-        # BEGIN Problem EC 1
-        "*** YOUR CODE HERE ***"
-        # END Problem EC 1
+        if target is None:
+            return
+        target.reduce_health(self.damage)
+        # 1. 在这里想办法记录 target 还需要被减速多少个回合（可以用 setattr 或者给 target 增加一个属性）
+        # 比如：target.slow_turns = ??? 
+        target.slow_turns = 5
+        
+        # 2. 伪造一个新的行动逻辑！（注意看它的参数！）
+        def new_action(gamestate: GameState):
+            # 破案了！这个函数实在未来引擎要求蜜蜂行动时被调用的,
+            # 引擎会自动把 gamestate 传进来！
+            # 就在这里，你可以愉快地访问 gamestate.time 啦：
+            
+            # 如果还有减速回合：
+            #     如果是偶数回合：执行常规动作
+            #     如果是奇数回合：什么都不做（发呆）
+            #     记得减去一个减速回合哦！
+            # 如果减速回合用完了：
+            #     执行常规动作
+            
+            # 【重要提示】：执行常规动作时，按 Hint 说的,
+            # 直接调用原本的类方法：Bee.action(target, gamestate)
+            if target.slow_turns > 0:
+                if target.slow_turns % 2 == 0:
+                    Bee.action(target, gamestate)
+                target.slow_turns -= 1
+            else:
+                Bee.action(target, gamestate)
+            
+        # 3. 移花接木！把蜜蜂原本的 action 替换成你写的这个带有“减速毒药”的新函数
+        target.action = new_action
 
 
 class ScaryThrower(ThrowerAnt):
     """ThrowerAnt that intimidates Bees, making them back away instead of advancing."""
-
+    """
+    1.If the bee is already right next to the Hive and cannot go back further, it should not move. To check if a bee is next to the Hive, you might find the is_hive instance attribute of Place useful.
+    2.Bees remain scared until they have tried to back away twice. So, the back away effect lasts two turns.
+    3.Bees cannot try to back away if they are slowed and gamestate.time is odd. This would be a turn they're frozen by SlowThrower!
+    4.Once a bee has been scared once, it can't be scared ever again.
+    """
+    """
+    In order to complete the implementation of this ScaryThrower, you will need to set its class attributes appropriately and implement the scare method in Bee, which applies the scared status on a particular bee. 
+    You may also have to edit some other methods of Bee such as action.
+    """
     name = 'Scary'
     food_cost = 6
     # BEGIN Problem EC 2
@@ -565,7 +649,32 @@ class ScaryThrower(ThrowerAnt):
 
     def throw_at(self, target: Bee | None):
         # BEGIN Problem EC 2
-        "*** YOUR CODE HERE ***"
+        if target is None:
+            return
+        target.reduce_health(self.damage)
+        #判断是否受过惊吓，若有直接执行修改过的Bee.action(target, gamestate)，没有设self.scared_turns = 2
+        if not hasattr(target, "scared_turns"):
+            target.scared_turns = 3
+
+        def new_action(gamestate: GameState):
+            "*** YOUR CODE HERE ***"  
+            #受惊吓还有惊吓回合：
+                #2.没有被减速，每回合倒退一格,即执行修改过的Bee.action(target, gamestate)
+                #3.被减速且gamestate.time is even 每回合倒退一格,，执行修改过的Bee.action(target, gamestate)
+                #4.被减速且gamestate.time is odd 停住，即发呆
+                #6.惊吓回合减一
+            #惊吓回合用完了:
+                #5.执行修改过的Bee.action(target, gamestate)
+
+            if target.scared_turns > 0:
+                target.scared_turns -= 1
+                if hasattr(target, "slow_turns"):
+                    if ((target.slow_turns > 0) and (gamestate.time % 2 != 0)):
+                        return
+            Bee.action(target, gamestate)
+        # 3. 移花接木！把蜜蜂原本的 action 替换成你写的这个带有“惊吓魔盒”的新函数
+        target.action = new_action
+
         # END Problem EC 2
 
 
@@ -663,9 +772,14 @@ class Bee(Insect):
         gamestate -- The GameState, used to access game state information.
         """
         destination = None
-        if self.place:
-            destination = self.place.exit
-
+        if hasattr(self,"scared_turns"):
+            if (self.place and not self.scared_turns):
+                destination = self.place.exit
+            elif (self.place and self.scared_turns):
+                destination = self.place.entrance
+        else:
+            if (self.place):
+                destination = self.place.exit
 
         if self.blocked() and self.place and self.place.ant:
             self.sting(self.place.ant)
