@@ -713,9 +713,19 @@ class NinjaAnt(Ant):
 
 class LaserAnt(ThrowerAnt):
     """ThrowerAnt that damages all Insects standing in its path."""
+    """
+    1.对自己位置（除了自己）和自己前面的所有的除了在Hive中的Insects造成伤害
+    2.基础伤害值为2
+    3.每经过一个place镭射的伤害-0.25
+    4.每对一个Insect造成伤害镭射的威力立马-0.0625
+    5.如果伤害值减小到小于等于0，那么镭射造成的伤害为0
+    The exact order in which things are damaged within a turn does not matter.
+    Important: If an insect's health is unaffected, its health should remain as a whole number (integer), as it was when the insect was initially created.
+    """
     name = 'Laser'
     food_cost = 10
     # OVERRIDE CLASS ATTRIBUTES HERE
+    damage = 2
     # BEGIN Problem EC 4
     implemented = False   # Change to True to view in the GUI
     # END Problem EC 4
@@ -725,6 +735,12 @@ class LaserAnt(ThrowerAnt):
         self.insects_shot = 0
 
     def insects_in_front(self) -> dict[Bee, int]:
+        """
+        insects_in_front is an instance method, called by the action method, 
+        that returns a dictionary where each key is an Insect
+        and each corresponding value is the distance (in places) that that Insect is away from LaserAnt. 
+        The dictionary should include all Insects on the same place or in front of the LaserAnt, excluding LaserAnt itself.
+        """
         # BEGIN Problem EC 4
         return {}
         # END Problem EC 4
