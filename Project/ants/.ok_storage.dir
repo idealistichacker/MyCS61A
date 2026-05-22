@@ -13,3 +13,5 @@
 'Problem 11-correct', (6144, 66)
 'Problem 12-correct', (6656, 66)
 'Problem 0-correct', (7168, 66)
+'Problem EC 1-correct', (7680, 66)
+'Problem EC 2-correct', (8192, 66)

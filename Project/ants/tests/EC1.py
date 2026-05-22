@@ -58,18 +58,16 @@ test = {
           >>> gamestate.time += 1
           >>> bee.action(gamestate) # bee is not affected when gamestate.time is even. bee should take its regular action
           >>> bee.place.name
-          040b6ad98a7360eba8d493c250a9b82e
-          # locked
+          'tunnel_0_4'
           >>> slow.action(gamestate) # slow throws syrup again. slow's effects will take place for 5 more turns
           >>> for _ in range(5):
           ...    gamestate.time += 1
           ...    bee.action(gamestate)
           >>> bee.place.name
-          ba5c35f55ba3229d1eb021382d9d19c5
-          # locked
+          'tunnel_0_2'
           """,
           'hidden': False,
-          'locked': True,
+          'locked': False,
           'multiline': False
         },
         {

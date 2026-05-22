@@ -593,6 +593,7 @@ class SlowThrower(ThrowerAnt):
     food_cost = 6
     # BEGIN Problem EC 1
     implemented = True   # Change to True to view in the GUI
+    damage = 0
     # END Problem EC 1
 
     def throw_at(self, target: Bee | None):
@@ -619,7 +620,7 @@ class SlowThrower(ThrowerAnt):
             # 【重要提示】：执行常规动作时，按 Hint 说的,
             # 直接调用原本的类方法：Bee.action(target, gamestate)
             if target.slow_turns > 0:
-                if target.slow_turns % 2 == 0:
+                if gamestate.time % 2 == 0:
                     Bee.action(target, gamestate)
                 target.slow_turns -= 1
             else:
@@ -644,7 +645,8 @@ class ScaryThrower(ThrowerAnt):
     name = 'Scary'
     food_cost = 6
     # BEGIN Problem EC 2
-    implemented = False   # Change to True to view in the GUI
+    implemented = True   # Change to True to view in the GUI
+    damage = 0
     # END Problem EC 2
 
     def throw_at(self, target: Bee | None):
@@ -652,28 +654,35 @@ class ScaryThrower(ThrowerAnt):
         if target is None:
             return
         target.reduce_health(self.damage)
-        #判断是否受过惊吓，若有直接执行修改过的Bee.action(target, gamestate)，没有设self.scared_turns = 2
-        if not hasattr(target, "scared_turns"):
-            target.scared_turns = 3
+        target.scare(2)
 
-        def new_action(gamestate: GameState):
-            "*** YOUR CODE HERE ***"  
-            #受惊吓还有惊吓回合：
-                #2.没有被减速，每回合倒退一格,即执行修改过的Bee.action(target, gamestate)
-                #3.被减速且gamestate.time is even 每回合倒退一格,，执行修改过的Bee.action(target, gamestate)
-                #4.被减速且gamestate.time is odd 停住，即发呆
-                #6.惊吓回合减一
-            #惊吓回合用完了:
-                #5.执行修改过的Bee.action(target, gamestate)
 
-            if target.scared_turns > 0:
-                target.scared_turns -= 1
-                if hasattr(target, "slow_turns"):
-                    if ((target.slow_turns > 0) and (gamestate.time % 2 != 0)):
-                        return
-            Bee.action(target, gamestate)
-        # 3. 移花接木！把蜜蜂原本的 action 替换成你写的这个带有“惊吓魔盒”的新函数
-        target.action = new_action
+
+        # #判断是否受过惊吓，若有直接执行修改过的Bee.action(target, gamestate)，没有设self.scared_turns = 2
+        # if not hasattr(target, "scared_turns"):
+        #     target.scared_turns = 2
+
+        # def new_action(gamestate: GameState):
+        #     "*** YOUR CODE HERE ***"  
+        #     #受惊吓还有惊吓回合且不靠着hive：
+        #         #2.没有被减速，每回合倒退一格,即执行修改过的Bee.action(target, gamestate)
+        #         #3.被减速且gamestate.time is even 每回合倒退一格,，执行修改过的Bee.action(target, gamestate)
+        #         #4.被减速且gamestate.time is odd 停住，即发呆
+        #         #6.惊吓回合减一
+        #     #受惊吓还有惊吓回合且靠着hive：
+        #         #停住，即发呆
+        #         #6.惊吓回合减一
+        #     #惊吓回合用完了:
+        #         #5.执行修改过的Bee.action(target, gamestate)
+
+        #     if target.scared_turns > 0:
+        #         #target.scared_turns -= 1
+        #         if hasattr(target, "slow_turns"):
+        #             if ((target.slow_turns > 0) and (gamestate.time % 2 != 0)) or (target.place.entrance.is_hive):
+        #                 return
+        #     Bee.action(target, gamestate)
+        # # 3. 移花接木！把蜜蜂原本的 action 替换成你写的这个带有“惊吓魔盒”的新函数
+        # target.action = new_action
 
         # END Problem EC 2
 
@@ -772,19 +781,34 @@ class Bee(Insect):
         gamestate -- The GameState, used to access game state information.
         """
         destination = None
-        if hasattr(self,"scared_turns"):
-            if (self.place and not self.scared_turns):
-                destination = self.place.exit
-            elif (self.place and self.scared_turns):
-                destination = self.place.entrance
-        else:
-            if (self.place):
+        # if hasattr(self,"scared_turns"):
+        #     if (self.place and not self.scared_turns):
+        #         destination = self.place.exit
+        #     elif (self.place and self.scared_turns):
+        #         destination = self.place.entrance
+        #         self.scared_turns -= 1
+        # else:
+        
+        if (self.place):
+            #如果被恐惧了且不在奇数回合改变行进方向
+            #在hive前即使被scare了也不能退后,只能发呆
+            if ( hasattr(self, "scared_turns") and (self.scared_turns > 0) ):
+                if self.place.entrance.is_hive:
+                    self.scared_turns -= 1
+
+                # elif ((gamestate.time % 2 == 0)):
+                else:
+                    destination = self.place.entrance
+                    self.scared_turns -= 1
+            else:
                 destination = self.place.exit
 
         if self.blocked() and self.place and self.place.ant:
             self.sting(self.place.ant)
         elif self.health > 0 and destination is not None:
             self.move_to(destination)
+
+    
 
     def add_to(self, place: Place):
         place.bees.append(self)
@@ -801,6 +825,13 @@ class Bee(Insect):
         """
         # BEGIN Problem EC 2
         "*** YOUR CODE HERE ***"
+        #1.在hive前即使被scare了也不能退后,只能发呆
+        #2.一只蜂一生只能被scare一次
+        #3.恐惧效果维持两回合但要兼容减速效果，奇数回合不后退只发呆
+        if hasattr(self, "scared_turns"):
+            return
+        self.scared_turns = length
+
         # END Problem EC 2
 
 
