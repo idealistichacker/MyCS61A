@@ -108,6 +108,7 @@ class Ant(Insect):
     implemented = False  # Only implemented Ant classes should be instantiated
     food_cost = 0
     is_container = False
+    blocks_path = True
     # ADD CLASS ATTRIBUTES HERE
 
     def __init__(self, health: int = 1):
@@ -694,19 +695,24 @@ class NinjaAnt(Ant):
     damage = 1
     food_cost = 5
     # OVERRIDE CLASS ATTRIBUTES HERE
+    blocks_path = False
     # BEGIN Problem EC 3
-    implemented = False   # Change to True to view in the GUI
+    implemented = True   # Change to True to view in the GUI
     # END Problem EC 3
 
     def action(self, gamestate: GameState):
         # BEGIN Problem EC 3
         "*** YOUR CODE HERE ***"
+        # 1. 拷贝当前格子的蜜蜂列表（非常好的一步！）
+        current_place_bees = list(self.place.bees)
+        # 2. 对所有在当前格子的蜜蜂造成伤害
+        for bee in current_place_bees:
+            bee.reduce_health(self.damage)
         # END Problem EC 3
 
 
 class LaserAnt(ThrowerAnt):
     """ThrowerAnt that damages all Insects standing in its path."""
-
     name = 'Laser'
     food_cost = 10
     # OVERRIDE CLASS ATTRIBUTES HERE
@@ -771,7 +777,11 @@ class Bee(Insect):
         """Return True if this Bee cannot advance to the next Place."""
         # Special handling for NinjaAnt
         # BEGIN Problem EC 3
-        return self.place is not None and self.place.ant is not None
+        if self.place is None:
+            return False
+        if self.place.ant is None:
+            return False
+        return self.place.ant.blocks_path
         # END Problem EC 3
 
     def action(self, gamestate: GameState):
