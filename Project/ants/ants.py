@@ -725,14 +725,15 @@ class LaserAnt(ThrowerAnt):
     name = 'Laser'
     food_cost = 10
     # OVERRIDE CLASS ATTRIBUTES HERE
-    damage = 2
+    ddamage = 2
     # BEGIN Problem EC 4
-    implemented = False   # Change to True to view in the GUI
+    implemented = True   # Change to True to view in the GUI
     # END Problem EC 4
 
     def __init__(self, health: int = 1):
         super().__init__(health)
         self.insects_shot = 0
+        self.base_damage = self.ddamage
 
     def insects_in_front(self) -> dict[Bee, int]:
         """
@@ -742,18 +743,56 @@ class LaserAnt(ThrowerAnt):
         The dictionary should include all Insects on the same place or in front of the LaserAnt, excluding LaserAnt itself.
         """
         # BEGIN Problem EC 4
-        return {}
+        #1.从当前位置开始遍历每一个位置，直到hive
+        #2.将当前位置上的ant和距LaserAnt的距离加入到字典中（除了LaserAnt自己）
+        #   2.1判断当前ant是否是container，是则先加入container到字典中，再加入其中的ant.
+        #   2.2不是，判断当前位置的ant是否是LaserAnt自己，若是：跳过，若不是：直接加入
+        ant_distance = {}
+        distance = 0
+        current_place = self.place
+        if hasattr(current_place.ant, "is_container"):
+            if current_place.ant.is_container:
+                ant_distance[current_place.ant] = distance
+
+        #处理bee
+        current_place_beess = list(current_place.bees)
+        for bee in current_place_beess:
+            ant_distance[bee] = distance
+        #向前移动
+        current_place = current_place.entrance
+        distance += 1
+
+        while not current_place.is_hive:
+            ant_distance[current_place.ant] = distance
+            if hasattr(current_place.ant, "is_container"):
+                if current_place.ant.is_container:
+                    ant_distance[current_place.ant.ant_contained] = distance
+            #处理bee
+            current_place_beess = list(current_place.bees)
+            for bee in current_place_beess:
+                ant_distance[bee] = distance
+            #向前移动
+            current_place = current_place.entrance
+            distance += 1
+        del ant_distance[None]
+        return ant_distance
         # END Problem EC 4
 
     def calculate_damage(self, distance: int) -> float:
         # BEGIN Problem EC 4
+        weak_damage = 0.0625 * self.insects_shot + 0.25 * distance
+        if weak_damage <= self.ddamage:
+            self.base_damage = self.ddamage - (weak_damage)
+            return self.base_damage
         return 0
         # END Problem EC 4
 
     def action(self, gamestate: GameState):
         insects_and_distances = self.insects_in_front()
+        print("Debug insects_and_distances is: ", insects_and_distances)
         LaserAnt.play_sound_effect() # laser beam sound effect
         for insect, distance in insects_and_distances.items():
+            print("Debug insect is None? ", insect is None)
             damage = self.calculate_damage(distance)
             insect.reduce_health(damage)
             if damage:
