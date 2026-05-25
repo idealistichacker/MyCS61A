@@ -735,57 +735,37 @@ class LaserAnt(ThrowerAnt):
         self.insects_shot = 0
         self.base_damage = self.ddamage
 
-    def insects_in_front(self) -> dict[Bee, int]:
-        """
-        insects_in_front is an instance method, called by the action method, 
-        that returns a dictionary where each key is an Insect
-        and each corresponding value is the distance (in places) that that Insect is away from LaserAnt. 
-        The dictionary should include all Insects on the same place or in front of the LaserAnt, excluding LaserAnt itself.
-        """
-        # BEGIN Problem EC 4
-        #1.从当前位置开始遍历每一个位置，直到hive
-        #2.将当前位置上的ant和距LaserAnt的距离加入到字典中（除了LaserAnt自己）
-        #   2.1判断当前ant是否是container，是则先加入container到字典中，再加入其中的ant.
-        #   2.2不是，判断当前位置的ant是否是LaserAnt自己，若是：跳过，若不是：直接加入
+    def insects_in_front(self) -> dict[Insect, int]:
         ant_distance = {}
         distance = 0
         current_place = self.place
-        if hasattr(current_place.ant, "is_container"):
-            if current_place.ant.is_container:
-                ant_distance[current_place.ant] = distance
-
-        #处理bee
-        current_place_beess = list(current_place.bees)
-        for bee in current_place_beess:
-            ant_distance[bee] = distance
-        #向前移动
-        current_place = current_place.entrance
-        distance += 1
 
         while not current_place.is_hive:
-            ant_distance[current_place.ant] = distance
-            if hasattr(current_place.ant, "is_container"):
-                if current_place.ant.is_container:
-                    ant_distance[current_place.ant.ant_contained] = distance
-            #处理bee
-            current_place_beess = list(current_place.bees)
-            for bee in current_place_beess:
+            # 1. 处理该位置的蚂蚁
+            target_ant = current_place.ant
+            if target_ant is not None and target_ant is not self:
+                ant_distance[target_ant] = distance
+                # 如果是容器，还要检查里面有没有“别人”
+                if target_ant.is_container and target_ant.ant_contained is not None:
+                    # 只有当里面的蚂蚁不是 LaserAnt 自己时才加进去
+                    if target_ant.ant_contained is not self:
+                        ant_distance[target_ant.ant_contained] = distance
+            
+            # 2. 处理该位置的所有蜜蜂
+            for bee in current_place.bees:
                 ant_distance[bee] = distance
-            #向前移动
+
+            # 3. 前进到下一个格子
             current_place = current_place.entrance
             distance += 1
-        del ant_distance[None]
         return ant_distance
         # END Problem EC 4
 
     def calculate_damage(self, distance: int) -> float:
-        # BEGIN Problem EC 4
-        weak_damage = 0.0625 * self.insects_shot + 0.25 * distance
-        if weak_damage <= self.ddamage:
-            self.base_damage = self.ddamage - (weak_damage)
-            return self.base_damage
-        return 0
-        # END Problem EC 4
+        # 直接计算当前应该造成的伤害
+        # 基础 2.0 - 距离损耗 - 之前射击过的损耗
+        current_damage = 2.0 - (0.25 * distance) - (0.0625 * self.insects_shot)
+        return max(0, current_damage) # 确保不为负数
 
     def action(self, gamestate: GameState):
         insects_and_distances = self.insects_in_front()
